@@ -6,6 +6,8 @@ A small, offline color playground for finding a brand accent. Explore pink, rasp
 
 ## Try it
 
+**[Open the live app](https://maseaaao.github.io/get-brand-colors/)** — hosted on GitHub Pages.
+
 Download the repository and open **`index.html`** in a modern browser. No installation, server, account or internet connection is required. The Unbounded font and emoji favicon are embedded in the HTML.
 
 - Generate a new palette with **New palette / «Новая палитра»** or **Space**.
@@ -29,6 +31,8 @@ There is no analytics, tracking or network request. History and favorites are st
 
 Keep the HTML at a stable path and use the same browser. Moving it, clearing browser data or using private browsing may affect persistence. Export your history before moving the app or clearing data. If storage is unavailable or full, the app displays a message and keeps the current session in memory.
 
+The hosted app has its own browser storage. To move palettes from a local HTML file to the website, export the local history and import it into the hosted app.
+
 Imports merge new records by ID without duplicates. Existing records keep their current favorite status. Older exports without favorite flags remain supported. The import limit is 20 MB.
 
 ## Development
@@ -43,6 +47,8 @@ npm run format:check
 ```
 
 Use `npm run format` to format the source. Browser checks cover generation, favorite persistence, history selection, export/import, virtual scrolling and responsive layouts. They use an isolated browser context and never read your normal browser history. For an existing Chromium installation, set `BROWSER_EXECUTABLE_PATH` to its executable path.
+
+GitHub Pages publishes the repository root from `main`. The `.nojekyll` file keeps publication static, without Jekyll processing. Updates to `main` are published automatically.
 
 ## Contributing
 
