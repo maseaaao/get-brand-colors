@@ -16,7 +16,7 @@ Download the repository and open **`index.html`** in a modern browser. No instal
 - Copy any HEX value or all three colors with their labels.
 - Revisit palettes in **History / «История»** and save favorites with **«В избранное»**.
 - Press **Enter** to toggle the current palette’s favorite status. Buttons and input fields retain their usual Enter behavior; holding the key does not repeat the toggle.
-- Export and import the history as JSON, including favorites.
+- Export and import the history as JSON, including favorites. In the Favorites tab, the same buttons export only favorites or import palettes as favorites. Existing IDs are marked as favorites without replacing their colors; repeated imports do not create duplicates.
 
 The interface is in Russian. To preview your own name, edit the wordmarks in the HTML and the preview text in `renderHistory()`. Change `['m', 'M']` in `renderAvatars()` to customize avatar initials. Text sizing updates automatically.
 

@@ -1177,6 +1177,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       function toggleHistory(open, mode = listMode) {
         const changed = listMode !== mode;
         listMode = mode;
+        updateTransferButtons();
         $("history").hidden = !open;
         $("history-toggle").setAttribute(
           "aria-expanded",
@@ -1287,28 +1288,50 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           generate();
         }
       });
-      // Export keeps a portable copy of the history, independent of browser storage.
+      // Export and import follow the selected list without replacing existing history.
       const exportButton = document.createElement("button");
-      exportButton.textContent = "Экспорт истории";
+      const importButton = document.createElement("button");
+      function updateTransferButtons() {
+        const favorites = listMode === "favorites";
+        exportButton.textContent = favorites
+          ? "Экспорт избранного"
+          : "Экспорт истории";
+        importButton.textContent = favorites
+          ? "Импорт избранного"
+          : "Импорт истории";
+      }
       exportButton.style.margin = "0 24px 12px";
       exportButton.addEventListener("click", () => {
+        const favorites = listMode === "favorites";
+        const records = favorites
+          ? palettes.filter((p) => p.favorite === true)
+          : palettes;
         const blob = new Blob(
-          [JSON.stringify({ version: 1, palettes }, null, 2)],
+          [
+            JSON.stringify(
+              {
+                version: 1,
+                ...(favorites ? { type: "favorites" } : {}),
+                palettes: records,
+              },
+              null,
+              2,
+            ),
+          ],
           { type: "application/json" },
         );
         const url = URL.createObjectURL(blob),
           a = document.createElement("a");
         a.href = url;
         a.download =
-          "maseaaao-palettes-" +
+          "maseaaao-" +
+          (favorites ? "favorites" : "palettes") +
+          "-" +
           new Date().toISOString().slice(0, 10) +
           ".json";
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
-      $("history").append(exportButton);
-      const importButton = document.createElement("button");
-      importButton.textContent = "Импорт истории";
       importButton.style.margin = "0 24px 16px";
       const importInput = document.createElement("input");
       importInput.type = "file";
@@ -1318,58 +1341,81 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       importInput.addEventListener("change", async () => {
         const file = importInput.files[0];
         if (!file) return;
+        const favorites = listMode === "favorites";
         try {
           if (file.size > 20 * 1024 * 1024) throw new Error("size");
           const parsed = JSON.parse(await file.text());
           if (
+            !parsed ||
             parsed.version !== 1 ||
             !Array.isArray(parsed.palettes) ||
             !parsed.palettes.every(valid)
           )
             throw new Error("format");
-          const existing = new Set(palettes.map((p) => p.id)),
-            added = [];
-          for (const p of parsed.palettes)
-            if (!existing.has(p.id)) {
-              existing.add(p.id);
-              added.push({
-                id: p.id,
-                time: p.time,
-                bg: p.bg,
-                light: p.light,
-                dark: p.dark,
-                favorite: p.favorite === true,
-              });
+          const existing = new Map(palettes.map((p) => [p.id, p])),
+            changed = [];
+          let added = 0,
+            marked = 0;
+          for (const p of parsed.palettes) {
+            const found = existing.get(p.id);
+            if (found) {
+              if (favorites && found.favorite !== true) {
+                found.favorite = true;
+                changed.push(found);
+                marked++;
+              }
+              continue;
             }
-          palettes.push(...added);
+            const record = {
+              id: p.id,
+              time: p.time,
+              bg: p.bg,
+              light: p.light,
+              dark: p.dark,
+              favorite: favorites || p.favorite === true,
+            };
+            existing.set(record.id, record);
+            palettes.push(record);
+            changed.push(record);
+            added++;
+          }
           palettes.sort((a, b) => b.time - a.time);
           updateCount();
+          updateFavoriteButton();
           scheduleHistory();
-          if (db && persistent) {
+          if (db && persistent)
             await new Promise((resolve, reject) => {
               const tx = db.transaction("palettes", "readwrite");
-              added.forEach((p) => tx.objectStore("palettes").put(p));
+              changed.forEach((p) => tx.objectStore("palettes").put(p));
               tx.oncomplete = resolve;
               tx.onerror = () => reject(tx.error);
               tx.onabort = () => reject(tx.error);
             });
-          } else if (persistent)
+          else if (persistent)
             localStorage.setItem(STORAGE, JSON.stringify(palettes));
           else throw new Error("storage");
-          notify("Добавлено палитр: " + added.length);
+          notify(
+            favorites
+              ? "Добавлено палитр: " +
+                  added +
+                  " · Отмечено существующих: " +
+                  marked
+              : "Добавлено палитр: " + added,
+          );
         } catch (error) {
           notify(
             error.message === "size"
               ? "Файл слишком большой: максимум 20 МБ."
               : error.message === "format" || error instanceof SyntaxError
-                ? "Выберите JSON, созданный экспортом истории."
+                ? "Выберите JSON, созданный экспортом истории или избранного."
                 : "Не удалось сохранить импорт. Экспортируйте историю перед закрытием.",
           );
         } finally {
           importInput.value = "";
         }
       });
-      $("history").append(importButton, importInput);
+      updateTransferButtons();
+      $("history").append(exportButton, importButton, importInput);
       (async () => {
         await openStorage();
         let selected;

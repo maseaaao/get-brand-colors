@@ -167,9 +167,98 @@ const assert = require("assert"),
       JSON.stringify({ width, height, layout }),
     );
   }
+  await page.evaluate(() => {
+    URL.createObjectURL = function (blob) {
+      window.exportedBlob = blob;
+      return "blob:test";
+    };
+    HTMLAnchorElement.prototype.click = function () {};
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator("#favorites-toggle").click();
+  await page
+    .getByRole("button", { name: "Экспорт избранного", exact: true })
+    .click();
+  const favoritesExport = JSON.parse(
+    await page.evaluate(() => exportedBlob.text()),
+  );
+  assert.equal(favoritesExport.type, "favorites");
+  assert(favoritesExport.palettes.length > 0);
+  assert(favoritesExport.palettes.every((p) => p.favorite === true));
+  assert.equal(
+    favoritesExport.palettes.length,
+    await page.evaluate(() => favoritePalettes.length),
+  );
+  const beforeImport = await page.evaluate(() => ({
+    count: palettes.length,
+    existing: palettes.find((p) => !p.favorite),
+  }));
+  const newFavorite = {
+    ...beforeImport.existing,
+    id: "favorites-only-import",
+    favorite: false,
+  };
+  const favoritesFile = {
+    name: "favorites-only.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        version: 1,
+        type: "favorites",
+        palettes: [
+          { ...beforeImport.existing, bg: "#123456" },
+          newFavorite,
+          newFavorite,
+        ],
+      }),
+    ),
+  };
+  await page.locator("input[type=file]").setInputFiles(favoritesFile);
+  await page.waitForFunction(
+    () =>
+      document.getElementById("toast").textContent ===
+      "Добавлено палитр: 1 · Отмечено существующих: 1",
+  );
+  assert.equal(
+    await page.evaluate(() => palettes.length),
+    beforeImport.count + 1,
+  );
+  const promoted = await page.evaluate(
+    (id) => palettes.find((p) => p.id === id),
+    beforeImport.existing.id,
+  );
+  assert.equal(promoted.favorite, true);
+  assert.equal(promoted.bg, beforeImport.existing.bg);
+  await page.locator("input[type=file]").setInputFiles(favoritesFile);
+  await page.waitForFunction(
+    () =>
+      document.getElementById("toast").textContent ===
+      "Добавлено палитр: 0 · Отмечено существующих: 0",
+  );
+  assert.equal(
+    await page.evaluate(() => palettes.length),
+    beforeImport.count + 1,
+  );
+  await page.reload();
+  await page.waitForFunction(
+    () => !document.getElementById("generate").disabled,
+  );
+  assert.equal(
+    await page.evaluate(
+      (id) => palettes.find((p) => p.id === id).favorite,
+      beforeImport.existing.id,
+    ),
+    true,
+  );
+  assert.equal(
+    await page.evaluate(
+      () => palettes.find((p) => p.id === "favorites-only-import").favorite,
+    ),
+    true,
+  );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: add/remove favorites, reload persistence, separate filtered list and empty state, selection, history preserved, export/import and legacy import, 10000-favorite virtualization, tab scroll reset, 5 responsive layouts, no browser errors.",
+    "PASS: add/remove favorites, reload persistence, separate filtered list and empty state, selection, history preserved, export/import and legacy import, favorites-only export/import with deduplication and persistence, 10000-favorite virtualization, tab scroll reset, 5 responsive layouts, no browser errors.",
   );
   await b.close();
 })().catch((e) => {
