@@ -716,6 +716,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <div class="palette-actions">
           <button
             id="favorite"
+            aria-keyshortcuts="Enter"
+            title="Добавить или убрать из избранного — Enter"
             class="favorite-button"
             aria-pressed="false"
             disabled
@@ -814,6 +816,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         const x = luminance(a),
           y = luminance(b);
         return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+      }
+      function contrastIndicatorColor(ratio) {
+        const value = Math.max(1, Math.min(7, ratio));
+        const hue =
+          value <= 4.5
+            ? ((value - 1) / 3.5) * 40
+            : 40 + ((value - 4.5) / 2.5) * 90;
+        return hsl(hue, 75, 24);
       }
       function textColor(bg, h, light) {
         const candidates = Array.from({ length: 48 }, () =>
@@ -931,10 +941,18 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           hex.textContent = p[key];
           const ratio = document.createElement("div");
           ratio.className = "contrast";
-          ratio.textContent =
-            key === "bg"
-              ? "Акцент бренда"
-              : "Контраст " + contrast(p.bg, p[key]).toFixed(2) + ":1";
+          if (key === "bg") ratio.textContent = "Акцент бренда";
+          else {
+            const value = contrast(p.bg, p[key]);
+            ratio.textContent = "Контраст " + value.toFixed(2) + ":1";
+            ratio.style.color = contrastIndicatorColor(value);
+            ratio.title =
+              value >= 7
+                ? "Высокий контраст"
+                : value >= 4.5
+                  ? "Достаточный контраст для обычного текста"
+                  : "Низкий контраст для обычного текста";
+          }
           info.append(name, hex, ratio);
           const copy = document.createElement("button");
           copy.className = "copy";
@@ -1233,6 +1251,23 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       });
       document.fonts.ready.then(fitText);
       addEventListener("keydown", (e) => {
+        if (
+          e.key === "Enter" &&
+          !e.repeat &&
+          !e.isComposing &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          !["BUTTON", "INPUT", "TEXTAREA", "SELECT"].includes(
+            e.target.tagName,
+          ) &&
+          !e.target.isContentEditable &&
+          !$("copy-dialog").open &&
+          !$("favorite").disabled
+        ) {
+          e.preventDefault();
+          toggleFavorite();
+        }
         if (e.code === "Escape" && !$("history").hidden) toggleHistory(false);
         if (
           e.code === "Space" &&

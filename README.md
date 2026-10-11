@@ -15,6 +15,7 @@ Download the repository and open **`index.html`** in a modern browser. No instal
 - Preview 12 round avatars: three backgrounds × two other text colors × lowercase `m` / uppercase `M`.
 - Copy any HEX value or all three colors with their labels.
 - Revisit palettes in **History / «История»** and save favorites with **«В избранное»**.
+- Press **Enter** to toggle the current palette’s favorite status. Buttons and input fields retain their usual Enter behavior; holding the key does not repeat the toggle.
 - Export and import the history as JSON, including favorites.
 
 The interface is in Russian. To preview your own name, edit the wordmarks in the HTML and the preview text in `renderHistory()`. Change `['m', 'M']` in `renderAvatars()` to customize avatar initials. Text sizing updates automatically.
@@ -22,6 +23,8 @@ The interface is in Russian. To preview your own name, edit the wordmarks in the
 ## How colors are chosen
 
 Background hues span 270°–368° (wrapping at 360°), with 35–100% saturation and 9–92% HSL lightness. Light and dark text are selected separately from tinted candidates. The algorithm aims for a luminance contrast ratio of 7:1; when that is not possible, it selects the strongest contrast on the corresponding light or dark side, including white or black.
+
+The contrast labels smoothly change from red at 1:1 through amber at 4.5:1 to green at 7:1 and above, using WCAG thresholds for normal text as reference points. Hover over a label for its rating. The indicator shades remain readable on the light panel.
 
 The displayed ratios help compare options. A single background cannot always provide strong contrast for both light and dark text.
 
